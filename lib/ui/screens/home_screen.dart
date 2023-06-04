@@ -38,6 +38,7 @@ class HomeScreen extends HookConsumerWidget {
                       switch (state.action) {
                         case TimerAction.running:
                           notifier.pause();
+                          break;
                         case TimerAction.paused:
                         case TimerAction.stopped:
                           final message = notifier.start();

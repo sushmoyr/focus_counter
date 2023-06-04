@@ -15,7 +15,7 @@ class TimerWidget extends HookConsumerWidget {
     final minute = duration.abs().inMinutes % 60;
     final second = duration.abs().inSeconds % 60;
 
-    return "${hour.toStringAsFixed(0)}:${minute.toStringAsFixed(0)}:${second.toStringAsFixed(0)}";
+    return "${hour.toStringAsFixed(0).padLeft(2, "0")}:${minute.toStringAsFixed(0).padLeft(2, "0")}:${second.toStringAsFixed(0).padLeft(2, "0")}";
   }
 
   @override

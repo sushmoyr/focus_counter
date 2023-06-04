@@ -1,22 +1,27 @@
 import 'dart:async';
+import 'dart:math';
 
+import 'package:focus_counter/providers/alarm_controller.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 enum TimerAction { running, paused, stopped }
 
 class TimerState {
+  final int id;
   final Duration remaining;
   final Duration duration;
   final TimerAction action;
 
-  factory TimerState.initial() => const TimerState(
-        remaining: Duration(seconds: 0),
-        duration: Duration(seconds: 0),
+  factory TimerState.initial() => TimerState(
+        id: Random().nextInt(100000),
+        remaining: const Duration(seconds: 0),
+        duration: const Duration(seconds: 0),
         action: TimerAction.stopped,
       );
 
 //<editor-fold desc="Data Methods">
   const TimerState({
+    required this.id,
     required this.remaining,
     required this.duration,
     required this.action,
@@ -27,12 +32,14 @@ class TimerState {
       identical(this, other) ||
       (other is TimerState &&
           runtimeType == other.runtimeType &&
+          id == other.id &&
           remaining == other.remaining &&
           duration == other.duration &&
           action == other.action);
 
   @override
-  int get hashCode => remaining.hashCode ^ action.hashCode ^ duration.hashCode;
+  int get hashCode =>
+      remaining.hashCode ^ action.hashCode ^ duration.hashCode ^ id.hashCode;
 
   TimerState copyWith({
     Duration? remaining,
@@ -43,6 +50,7 @@ class TimerState {
       remaining: remaining ?? this.remaining,
       duration: duration ?? this.duration,
       action: action ?? this.action,
+      id: id,
     );
   }
 //</editor-fold>
@@ -67,6 +75,7 @@ class TimerController extends AutoDisposeNotifier<TimerState> {
     switch (state.action) {
       case TimerAction.running:
         stop();
+        break;
       case TimerAction.paused:
       case TimerAction.stopped:
         break;
@@ -81,6 +90,7 @@ class TimerController extends AutoDisposeNotifier<TimerState> {
       action: TimerAction.running,
       remaining: shouldResume ? state.remaining : state.duration,
     );
+    ref.read(alarmControllerProvider.notifier).scheduleAlarm(state.remaining);
     timer = Timer.periodic(_kDefaultPeriod, (timer) {
       state = state.copyWith(
         action: TimerAction.running,
@@ -92,11 +102,13 @@ class TimerController extends AutoDisposeNotifier<TimerState> {
 
   void pause() {
     state = state.copyWith(action: TimerAction.paused);
+    ref.read(alarmControllerProvider.notifier).stopAlarm();
     timer?.cancel();
   }
 
   void stop() {
     timer?.cancel();
+    ref.read(alarmControllerProvider.notifier).stopAlarm();
     timer = null;
     state = TimerState.initial();
   }
