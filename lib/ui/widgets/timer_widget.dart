@@ -21,7 +21,8 @@ class TimerWidget extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(timerControllerProvider);
-    final progress = 1 - (state.remaining.inSeconds / state.duration.inSeconds);
+    final progress = (state.elapsed.inSeconds / state.duration.inSeconds);
+    print(progress);
 
     final Color progressColor = progress > 1
         ? Theme.of(context).colorScheme.error
@@ -67,7 +68,7 @@ class TimerWidget extends HookConsumerWidget {
                       initialTime: const TimeOfDay(hour: 00, minute: 00));
                 },
                 child: Text(
-                  _getTimeText(state.remaining),
+                  _getTimeText(state.elapsed),
                   style: Theme.of(context).textTheme.displayLarge,
                 ),
               ),

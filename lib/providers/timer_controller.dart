@@ -8,13 +8,16 @@ enum TimerAction { running, paused, stopped }
 
 class TimerState {
   final int id;
-  final Duration remaining;
+  final Duration elapsed;
   final Duration duration;
   final TimerAction action;
+  final List<Duration> history;
+
+  // Duration get remaining => duration - elapsed;
 
   factory TimerState.initial() => TimerState(
         id: Random().nextInt(100000),
-        remaining: const Duration(seconds: 0),
+        elapsed: const Duration(seconds: 0),
         duration: const Duration(seconds: 0),
         action: TimerAction.stopped,
       );
@@ -22,9 +25,10 @@ class TimerState {
 //<editor-fold desc="Data Methods">
   const TimerState({
     required this.id,
-    required this.remaining,
+    required this.elapsed,
     required this.duration,
     required this.action,
+    this.history = const [],
   });
 
   @override
@@ -33,23 +37,30 @@ class TimerState {
       (other is TimerState &&
           runtimeType == other.runtimeType &&
           id == other.id &&
-          remaining == other.remaining &&
+          elapsed == other.elapsed &&
           duration == other.duration &&
+          history == other.history &&
           action == other.action);
 
   @override
   int get hashCode =>
-      remaining.hashCode ^ action.hashCode ^ duration.hashCode ^ id.hashCode;
+      elapsed.hashCode ^
+      action.hashCode ^
+      duration.hashCode ^
+      history.hashCode ^
+      id.hashCode;
 
   TimerState copyWith({
-    Duration? remaining,
+    Duration? elapsed,
     Duration? duration,
     TimerAction? action,
+    List<Duration>? history,
   }) {
     return TimerState(
-      remaining: remaining ?? this.remaining,
+      elapsed: elapsed ?? this.elapsed,
       duration: duration ?? this.duration,
       action: action ?? this.action,
+      history: history ?? this.history,
       id: id,
     );
   }
@@ -71,6 +82,11 @@ class TimerController extends AutoDisposeNotifier<TimerState> {
     return TimerState.initial();
   }
 
+  void restart() {
+    stop();
+    start();
+  }
+
   String? start() {
     switch (state.action) {
       case TimerAction.running:
@@ -88,13 +104,15 @@ class TimerController extends AutoDisposeNotifier<TimerState> {
     bool shouldResume = state.action == TimerAction.paused;
     state = state.copyWith(
       action: TimerAction.running,
-      remaining: shouldResume ? state.remaining : state.duration,
+      elapsed: shouldResume ? state.elapsed : Duration.zero,
     );
-    ref.read(alarmControllerProvider.notifier).scheduleAlarm(state.remaining);
+    ref
+        .read(alarmControllerProvider.notifier)
+        .scheduleAlarm(state.duration - state.elapsed);
     timer = Timer.periodic(_kDefaultPeriod, (timer) {
       state = state.copyWith(
         action: TimerAction.running,
-        remaining: state.remaining - _kDefaultPeriod,
+        elapsed: state.elapsed + _kDefaultPeriod,
       );
     });
     return null;
@@ -110,8 +128,14 @@ class TimerController extends AutoDisposeNotifier<TimerState> {
     timer?.cancel();
     ref.read(alarmControllerProvider.notifier).stopAlarm();
     timer = null;
-    state = TimerState.initial();
+    state = state.copyWith(
+      action: TimerAction.stopped,
+      elapsed: Duration.zero,
+      history: [...state.history, state.elapsed],
+    );
   }
+
+  void reset() => state = TimerState.initial();
 
   void updateMinutes(int minutes) {
     final duration = state.duration;
